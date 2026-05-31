@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUCS 2026 — Simulador de Pontuação</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;background:#0a0a0a;color:#e8e8e8;min-height:100vh}
+.header{background:#000;border-bottom:2px solid rgba(255,107,53,0.2);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.header-left{display:flex;align-items:center;gap:14px}
+.header-text h1{font-size:17px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase}
+.header-text h1 .j{color:#e84040}.header-text h1 .u{color:#f0a020}.header-text h1 .c{color:#30c060}.header-text h1 .s{color:#4080f0}
+.header-text p{font-size:11px;color:#444;margin-top:2px}
+.header-right{display:flex;align-items:center;gap:10px}
+.nick-badge{font-size:12px;color:#ff6b35;background:#1a0800;border:1px solid #cc4400;border-radius:20px;padding:5px 14px;font-weight:600;display:flex;align-items:center;gap:7px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#ff6b35;flex-shrink:0;transition:background 0.3s}
+.sync-dot.saving{background:#F9A825;animation:blink 0.7s infinite}
+.sync-dot.error{background:#ff4444}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.btn-sm{font-size:11px;color:#555;background:none;border:1px solid #222;border-radius:6px;padding:5px 12px;cursor:pointer;font-family:inherit}
+.btn-sm:hover{color:#aaa;border-color:#444}
+.main{max-width:1020px;margin:0 auto;padding:20px 16px}
+.top-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.ttab{padding:7px 18px;border-radius:8px;border:1px solid #2a2a2a;background:#111;color:#555;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500}
+.ttab:hover{border-color:#333;color:#aaa}
+.ttab.active{background:#ff6b35;color:#000;border-color:#ff6b35;font-weight:700}
+.modal-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:20px}
+.mtab{padding:5px 11px;border-radius:8px;border:1px solid #222;font-size:12px;cursor:pointer;background:#0d0d0d;color:#444;font-family:inherit}
+.mtab:hover{border-color:#333;color:#999}
+.mtab.active{background:#2a0d00;color:#ff6b35;border-color:#cc4400;font-weight:600}
+.mtab.done{border-color:#cc4400;color:#ff6b35}
+.card{background:#111;border:1px solid #1e1e1e;border-radius:12px;padding:16px 20px;margin-bottom:14px}
+.prow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #181818}
+.prow:last-child{border-bottom:none}
+.p-rank{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.r1{background:#FFD700;color:#1a1000}.r2{background:#aaa;color:#111}.r3{background:#cd7f32;color:#1a0800}.rn{background:#1e1e1e;color:#444}
+.p-name{font-size:13px;font-weight:600;color:#e8e8e8;min-width:70px}
+.p-apelido{font-size:10px;color:#555;min-width:80px}
+.p-guar{font-size:16px;font-weight:700;min-width:36px;text-align:right;color:#ff6b35}
+.p-bar-wrap{display:flex;align-items:center;gap:6px;min-width:200px;justify-content:flex-end}
+.p-bar-bg{height:7px;border-radius:4px;background:#1a1a1a;width:110px;position:relative;overflow:hidden}
+.p-bar-guar{height:100%;border-radius:4px;background:#ff6b35;position:absolute;top:0;left:0}
+.p-bar-max{height:100%;border-radius:4px;background:#4a1800;position:absolute;top:0;left:0}
+.p-range{font-size:11px;color:#444;min-width:90px;text-align:right}
+.placar-note{font-size:11px;color:#2a2a2a;margin-top:8px}
+.bracket-wrap{overflow-x:auto;padding-bottom:8px}
+.bracket{display:flex;align-items:center;min-width:720px}
+.round{display:flex;flex-direction:column;padding:0 4px}
+.round-label{font-size:10px;color:#333;text-align:center;margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
+.match-pair{display:flex;flex-direction:column;gap:2px;margin:6px 0}
+.slot{display:flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid #1e1e1e;border-radius:8px;background:#0d0d0d;min-height:32px;cursor:pointer}
+.slot:hover{background:#161616;border-color:#2a2a2a}
+.slot.winner{border-color:#cc4400;background:#1a0800}
+.slot.winner .slot-name{color:#ff6b35;font-weight:700}
+.slot.loser{opacity:0.28}
+.slot.empty{cursor:default;background:#080808;border-color:#111}
+.slot.bye{border-color:#4a1800;background:#1a0800;cursor:default}
+.slot.bye .slot-name{color:#cc4400;font-style:italic}
+.slot-name{font-size:12px;color:#bbb;flex:1}
+.slot-badge{font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px;flex-shrink:0}
+.badge-orange{background:#1a0800;color:#ff6b35}
+.badge-gray{background:#161616;color:#444;border:1px solid #2a2a2a}
+.round-center{display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:95px;padding:0 4px}
+.champion-box{border:1px solid #cc4400;border-radius:10px;padding:10px 12px;background:#1a0800;text-align:center;min-width:85px}
+.champion-label{font-size:10px;color:#cc4400;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
+.champion-name{font-size:13px;font-weight:700;color:#ff6b35}
+.rank-list{display:flex;flex-direction:column;gap:4px;margin-top:14px}
+.section-label{font-size:10px;color:#2a2a2a;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px}
+.rank-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:#0d0d0d;border:1px solid #181818}
+.rank-num{font-size:11px;color:#2a2a2a;width:16px;text-align:right}
+.rank-name{font-size:13px;font-weight:600;flex:1;color:#ccc}
+.rank-pts{font-size:13px;font-weight:700;min-width:30px;text-align:right;color:#ff6b35}
+.rank-range{font-size:11px;min-width:110px;text-align:right}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.manual-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.manual-cell{background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;padding:9px 11px}
+.manual-cell select{width:100%;font-size:12px;border:1px solid #2a2a2a;border-radius:6px;padding:4px 6px;background:#111;color:#ccc;cursor:pointer;font-family:inherit;margin-top:4px}
+.cheer-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.cheer-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px}
+.cheer-num{font-size:11px;color:#444;width:20px}
+.cheer-name{font-size:13px;font-weight:600;flex:1}
+.cheer-ape{font-size:10px;color:#555}
+.cheer-sel{font-size:12px;border:1px solid #2a2a2a;border-radius:6px;padding:4px 8px;background:#111;color:#ccc;cursor:pointer;font-family:inherit}
+.cheer-pts{font-size:11px;font-weight:700;color:#ff6b35;min-width:32px;text-align:right}
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0a0a;padding:20px}
+.login-box{background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:36px;width:100%;max-width:400px;text-align:center}
+.login-logo{font-size:56px;font-weight:900;letter-spacing:-2px;margin-bottom:12px;line-height:1}
+.login-logo .j{color:#e84040}.login-logo .u{color:#f0a020}.login-logo .c{color:#30c060}.login-logo .s{color:#4080f0}
+.login-box h2{font-size:15px;font-weight:600;color:#666;margin-bottom:4px;text-transform:uppercase;letter-spacing:2px}
+.login-box p{font-size:13px;color:#444;margin-bottom:24px}
+.login-input-row{display:flex;gap:8px;margin-bottom:16px}
+.login-input-row input{flex:1;padding:10px 14px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:8px;color:#e8e8e8;font-size:14px;font-family:inherit;outline:none}
+.login-input-row input:focus{border-color:#cc4400}
+.login-input-row input::placeholder{color:#333}
+.btn-primary{padding:10px 20px;background:#ff6b35;color:#000;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn-primary:hover{background:#e05a25}
+.btn-primary:disabled{background:#2a0d00;color:#4a1800;cursor:not-allowed}
+.login-error{font-size:12px;color:#ff4444;margin-top:8px;min-height:18px;text-align:left}
+.user-list-label{font-size:11px;color:#333;text-align:left;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em}
+.user-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;margin-bottom:4px}
+.user-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;cursor:pointer;transition:all 0.1s}
+.user-item:hover{border-color:#cc4400;background:#1a0800}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:#1e1e1e;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#ff6b35;flex-shrink:0}
+.user-item-nick{font-size:13px;font-weight:500;color:#ccc;flex:1;text-align:left}
+.user-item-arrow{font-size:12px;color:#333}
+.user-divider{display:flex;align-items:center;gap:10px;margin:16px 0}
+.user-divider span{font-size:11px;color:#333;white-space:nowrap}
+.user-divider::before,.user-divider::after{content:'';flex:1;height:1px;background:#1e1e1e}
+.login-loading{font-size:12px;color:#333;padding:12px 0;text-align:center}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#0a0a0a}
+::-webkit-scrollbar-thumb{background:#222;border-radius:3px}
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="login-screen">
+  <div class="login-box">
+    <div class="login-logo"><span class="j">J</span><span class="u">U</span><span class="c">C</span><span class="s">S</span></div>
+    <h2>Simulador de Pontuação</h2>
+    <p>04 a 07 Jun · Vassouras · 2026</p>
+    <div id="users-section">
+      <div class="login-loading" id="users-loading">Carregando usuários...</div>
+      <div id="users-list-wrap" style="display:none">
+        <div class="user-list-label">Entrar como</div>
+        <div class="user-list" id="users-list"></div>
+        <div class="user-divider"><span>ou entre com um nickname novo</span></div>
+      </div>
+    </div>
+    <div class="login-input-row">
+      <input type="text" id="input-nick" placeholder="Novo nickname..." maxlength="20" autocomplete="off">
+      <button class="btn-primary" id="btn-entrar" onclick="entrar()">Entrar</button>
+    </div>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-text">
+        <h1><span class="j">J</span><span class="u">U</span><span class="c">C</span><span class="s">S</span> <span style="color:#e8e8e8">2026</span></h1>
+        <p>Simulador de Pontuação · 04 a 07 JUN · Vassouras</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="nick-badge">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="nick-display"></span>
+      </span>
+      <button class="btn-sm" onclick="sair()">Trocar usuário</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="top-tabs">
+      <button class="ttab active" onclick="showMain('placar')">Placar geral</button>
+      <button class="ttab" onclick="showMain('brackets')">Modalidades</button>
+      <button class="ttab" onclick="showMain('cheer')">Cheerleading</button>
+    </div>
+    <div id="main-placar">
+      <div class="card"><div id="placar-rows"></div></div>
+      <div class="placar-note" id="placar-note"></div>
+    </div>
+    <div id="main-brackets" style="display:none">
+      <div class="modal-tabs" id="modal-tabs"></div>
+      <div class="card">
+        <div id="bracket-view"></div>
+        <div class="rank-list" id="rank-view"></div>
+      </div>
+    </div>
+    <div id="main-cheer" style="display:none">
+      <div class="card" id="cheer-view"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://klaiejesmehovhtkwvza.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsYWllamVzbWVob3ZodGt3dnphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMTExMjgsImV4cCI6MjA5NTc4NzEyOH0.IW9hGCMAAR-e6oTSGIYd1er9zg69SruoK5cVNQi-8LY';
+const H={'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
+async function sbGet(t,f){const r=await fetch(`${SB_URL}/rest/v1/${t}?${f||''}`,{headers:H});if(!r.ok)throw new Error(await r.text());return r.json()}
+async function sbUpsert(t,d,c){const r=await fetch(`${SB_URL}/rest/v1/${t}?on_conflict=${c}`,{method:'POST',headers:{...H,'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return true}
+
+const PTP=[0,14,11,8,7,4,3,2,1];
+const PTR=[0,11,8,6,5,4,3,2,1];
+const CORES={'UFRJ':'#e05a00','PUC':'#d4a800','UERJ':'#1a8c3a','UFF':'#cc1a88','ESPM':'#1a6fd8','VEIGA':'#cc2200','RURAL':'#e07800'};
+const APELIDOS={'UFRJ':'Tubarões','PUC':'Kenny','UERJ':'AACA','UFF':'Lobos','ESPM':'Jacarito','VEIGA':'Uvaloprados','RURAL':'Acsar'};
+const ALL_A=Object.keys(CORES);
+const CHEER_ORDER=['UERJ','UFF','UFRJ','PUC','ESPM'];
+
+const MODALIDADES=[
+  // bracket: [[esq_cima, esq_baixo],[dir_cima, dir_baixo]]
+  // esq_cima e esq_baixo formam semi esquerda; dir_cima e dir_baixo formam semi direita
+  // bye = [time, null] ou [null, time]
+  {id:'bsq_f',nome:'Basquete F',pts:'P',bracket:[
+    [['UERJ','UFRJ'],['VEIGA',null]],   // semi esquerda
+    [['UFF','RURAL'],['PUC','ESPM']]    // semi direita
+  ]},
+  {id:'bsq_m',nome:'Basquete M',pts:'P',bracket:[
+    [['RURAL','ESPM'],['UFF',null]],
+    [['VEIGA','UFRJ'],['UERJ','PUC']]
+  ]},
+  {id:'fut_m',nome:'Futebol M',pts:'P',bracket:[
+    [['UFF','UFRJ'],['UERJ',null]],
+    [['PUC','ESPM'],['VEIGA',null]]
+  ]},
+  {id:'fts_f',nome:'Futsal F',pts:'P',bracket:[
+    [['UFF','UERJ'],['ESPM',null]],
+    [['UFRJ','RURAL'],['VEIGA','PUC']]
+  ]},
+  {id:'fts_m',nome:'Futsal M',pts:'P',bracket:[
+    [['UFF','PUC'],['UERJ',null]],
+    [['RURAL','ESPM'],['UFRJ','VEIGA']]
+  ]},
+  {id:'hdb_f',nome:'Handebol F',pts:'P',bracket:[
+    [['PUC','VEIGA'],['UFRJ',null]],
+    [['ESPM','UFF'],['RURAL','UERJ']]
+  ]},
+  {id:'hdb_m',nome:'Handebol M',pts:'P',bracket:[
+    [['ESPM','PUC'],['UFRJ',null]],
+    [['VEIGA','RURAL'],['UERJ','UFF']]
+  ]},
+  {id:'vol_f',nome:'Volei F',pts:'P',bracket:[
+    [['ESPM','PUC'],['RURAL',null]],
+    [['UFRJ','UFF'],['VEIGA','UERJ']]
+  ]},
+  {id:'vol_m',nome:'Volei M',pts:'P',bracket:[
+    [['VEIGA','UFRJ'],['ESPM',null]],
+    [['RURAL','UERJ'],['UFF','PUC']]
+  ]},
+  {id:'tns_f',nome:'Tenis Mesa F',pts:'P',bracket:[
+    [['ESPM','UFRJ'],['PUC',null]],
+    [['UFF','RURAL'],['VEIGA','UERJ']]
+  ]},
+  {id:'tns_m',nome:'Tenis Mesa M',pts:'P',bracket:[
+    [['PUC','UFRJ'],['RURAL',null]],
+    [['UERJ','UFF'],['ESPM','VEIGA']]
+  ]},
+  {id:'nat_f',nome:'Natacao F',pts:'P',bracket:null},
+  {id:'nat_m',nome:'Natacao M',pts:'P',bracket:null},
+  {id:'jiu_f_74', nome:'Jiu-Jitsu F 74kg',pts:'P',bracket:[
+    [['UERJ','RURAL'],['UFRJ',null]],
+    [['UFF','PUC'],['ESPM','VEIGA']]
+  ]},
+  {id:'jiu_f_abs',nome:'Jiu-Jitsu F Abs', pts:'P',bracket:[
+    [['VEIGA','ESPM'],['UERJ',null]],
+    [['UFF','PUC'],['RURAL','UFRJ']]
+  ]},
+  {id:'jiu_m_75', nome:'Jiu-Jitsu M 75kg',pts:'P',bracket:[
+    [['RURAL','VEIGA'],['UFF',null]],
+    [['ESPM','PUC'],['UFRJ','UERJ']]
+  ]},
+  {id:'jiu_m_90', nome:'Jiu-Jitsu M 90kg',pts:'P',bracket:[
+    [['UFF','ESPM'],['VEIGA',null]],
+    [['PUC','RURAL'],['UFRJ','UERJ']]
+  ]},
+  {id:'jiu_m_abs',nome:'Jiu-Jitsu M Abs', pts:'P',bracket:[
+    [['UFRJ','UFF'],['RURAL',null]],
+    [['PUC','UERJ'],['ESPM','VEIGA']]
+  ]},
+  {id:'vpr_f',nome:'Volei Praia F',pts:'R',bracket:[
+    [['VEIGA','ESPM'],['UFF',null]],
+    [['UFRJ','RURAL'],['UERJ','PUC']]
+  ]},
+  {id:'vpr_m',nome:'Volei Praia M',pts:'R',bracket:[
+    [['UFF','VEIGA'],['PUC',null]],
+    [['UERJ','RURAL'],['UFRJ','ESPM']]
+  ]},
+  {id:'ftv_f',nome:'Futevolei F',  pts:'R',bracket:[
+    [['UFF','UFRJ'],['PUC',null]],
+    [['RURAL','ESPM'],['UERJ','VEIGA']]
+  ]},
+  {id:'ftv_m',nome:'Futevolei M',  pts:'R',bracket:[
+    [['PUC','VEIGA'],['ESPM',null]],
+    [['RURAL','UFRJ'],['UERJ','UFF']]
+  ]},
+];
+
+let state={},manualRanks={},cheerPos={},currentModal=MODALIDADES[0].id,currentNick='',saveTimer=null;
+
+function initState(){
+  state={};manualRanks={};
+  MODALIDADES.forEach(m=>{
+    if(m.bracket){
+      state[m.id]={
+        q:m.bracket[0].concat(m.bracket[1]).map(match=>({w:match[0]===null?match[1]:match[1]===null?match[0]:null,match:[...match],bye:match[0]===null||match[1]===null})),
+        s:[{w:null},{w:null}],f:{w:null}
+      };
+    } else {manualRanks[m.id]={};}
+  });
+}
+initState();
+
+function setSyncStatus(s){const d=document.getElementById('sync-dot');if(!d)return;d.className='sync-dot'+(s==='saving'?' saving':s==='error'?' error':'');}
+function serialize(){
+  const o={v:1,q:{},s:{},f:{},mr:{},cp:{}};
+  Object.keys(state).forEach(mid=>{o.q[mid]=state[mid].q.map(q=>q.w||null);o.s[mid]=state[mid].s.map(sm=>sm.w||null);o.f[mid]=state[mid].f.w||null;});
+  Object.keys(manualRanks).forEach(mid=>{o.mr[mid]=manualRanks[mid]});
+  o.cp=cheerPos;return o;
+}
+function deserialize(data){
+  if(!data||!data.v)return;
+  Object.keys(state).forEach(mid=>{
+    if(data.q&&data.q[mid])data.q[mid].forEach((w,i)=>{if(state[mid].q[i])state[mid].q[i].w=w||null});
+    if(data.s&&data.s[mid])data.s[mid].forEach((w,i)=>{if(state[mid].s[i])state[mid].s[i].w=w||null});
+    if(data.f&&mid in data.f)state[mid].f.w=data.f[mid]||null;
+  });
+  if(data.mr)Object.keys(data.mr).forEach(mid=>{if(mid in manualRanks)manualRanks[mid]=data.mr[mid]||{}});
+  if(data.cp)cheerPos={...data.cp};
+}
+async function salvarSimulacao(){
+  if(!currentNick)return;
+  try{await sbUpsert('simulacoes_jucs',{nickname:currentNick,state_json:serialize(),atualizado_em:new Date().toISOString()},'nickname');setSyncStatus('ok');}
+  catch(e){console.error(e);setSyncStatus('error')}
+}
+function triggerSave(){setSyncStatus('saving');clearTimeout(saveTimer);saveTimer=setTimeout(salvarSimulacao,1500);}
+async function carregarSimulacao(){
+  try{const rows=await sbGet('simulacoes_jucs',`nickname=eq.${encodeURIComponent(currentNick)}&limit=1`);if(rows&&rows.length>0&&rows[0].state_json)deserialize(rows[0].state_json);}
+  catch(e){console.warn(e)}
+}
+
+async function carregarUsuarios(){
+  try{
+    const rows=await sbGet('simulacoes_jucs','select=nickname&order=atualizado_em.desc&limit=50');
+    document.getElementById('users-loading').style.display='none';
+    if(rows&&rows.length>0){
+      const list=document.getElementById('users-list');list.innerHTML='';const seen=new Set();
+      rows.forEach(u=>{
+        if(seen.has(u.nickname))return;seen.add(u.nickname);
+        const item=document.createElement('div');item.className='user-item';
+        item.innerHTML=`<div class="user-avatar">${u.nickname.charAt(0).toUpperCase()}</div><div class="user-item-nick">${u.nickname}</div><div class="user-item-arrow">&#8594;</div>`;
+        item.onclick=()=>{document.getElementById('input-nick').value=u.nickname;entrar()};
+        list.appendChild(item);
+      });
+      document.getElementById('users-list-wrap').style.display='block';
+    } else {document.getElementById('users-loading').style.display='none';}
+  }catch(e){document.getElementById('users-loading').textContent='';}
+}
+
+async function entrar(){
+  const nick=document.getElementById('input-nick').value.trim();
+  if(nick.length<2){document.getElementById('login-error').textContent='Nickname precisa ter pelo menos 2 caracteres';return}
+  const btn=document.getElementById('btn-entrar');btn.disabled=true;btn.textContent='...';
+  document.getElementById('login-error').textContent='';
+  try{
+    await sbUpsert('simulacoes_jucs',{nickname:nick,state_json:{v:1},atualizado_em:new Date().toISOString()},'nickname');
+    currentNick=nick;localStorage.setItem('jucs2026_nick',nick);
+    initState();await carregarSimulacao();
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('nick-display').textContent=nick;
+    setSyncStatus('ok');renderPlacar();updateModalTabs();renderCheer();
+  }catch(e){
+    console.error(e);document.getElementById('login-error').textContent='Erro ao conectar. Tente novamente.';
+    btn.disabled=false;btn.textContent='Entrar';
+  }
+}
+function sair(){
+  clearTimeout(saveTimer);currentNick='';localStorage.removeItem('jucs2026_nick');initState();cheerPos={};
+  document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';
+  document.getElementById('input-nick').value='';document.getElementById('btn-entrar').disabled=false;document.getElementById('btn-entrar').textContent='Entrar';
+  document.getElementById('users-loading').style.display='block';document.getElementById('users-loading').textContent='Carregando usuários...';
+  document.getElementById('users-list-wrap').style.display='none';carregarUsuarios();
+}
+document.getElementById('input-nick').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()});
+carregarUsuarios();
+const savedNick=localStorage.getItem('jucs2026_nick');
+if(savedNick){document.getElementById('input-nick').value=savedNick;entrar()}
+
+function getPontos(m){return m.pts==='R'?PTR:PTP}
+function getSemiTeams(mid,si){const s=state[mid];return si===0?[s.q[0].w,s.q[1].w]:[s.q[2].w,s.q[3].w]}
+function getFinalistsTeams(mid){return[state[mid].s[0].w,state[mid].s[1].w]}
+
+function getModalPts(mid){
+  const m=MODALIDADES.find(x=>x.id===mid);const PT=getPontos(m);
+  const guar={},maxP={};ALL_A.forEach(a=>{guar[a]=0;maxP[a]=0});
+  if(!m.bracket){
+    const mr=manualRanks[mid]||{};ALL_A.forEach(a=>{const p=PT[parseInt(mr[a]||0)]||0;guar[a]=p;maxP[a]=p});return{guar,maxP};
+  }
+  const s=state[mid],champ=s.f.w,fin=getFinalistsTeams(mid);
+  const vice=champ?(fin[0]===champ?fin[1]:fin[0]):null;
+  ALL_A.forEach(a=>{
+    const qIdx=s.q.findIndex(q=>q.match&&q.match.includes(a));if(qIdx<0)return;
+    const q=s.q[qIdx],si2=qIdx<2?0:1,semi=s.s[si2];
+    if(q.match.includes(null)&&a!==q.w)return;
+    const hasW=!!q.w,iWin=q.w===a,iLose=hasW&&!iWin;
+    if(!hasW){guar[a]=0;maxP[a]=PT[1];return}
+    if(iLose){
+      const by=q.w;
+      if(champ&&vice){
+        const csi=s.s.findIndex(sm=>sm.w===champ);
+        const slc=getSemiTeams(mid,csi).find(t=>t&&t!==champ);
+        const vsi=s.s.findIndex(sm=>sm.w===vice);
+        const slv=getSemiTeams(mid,vsi).find(t=>t&&t!==vice);
+        if(by===champ){guar[a]=PT[5];maxP[a]=PT[5]}
+        else if(by===vice){guar[a]=PT[6];maxP[a]=PT[6]}
+        else if(by===slc){guar[a]=PT[7];maxP[a]=PT[7]}
+        else if(by===slv){guar[a]=PT[8];maxP[a]=PT[8]}
+        else{guar[a]=PT[8];maxP[a]=PT[5]}
+      } else if(champ){
+        const cqi=s.q.findIndex(q2=>q2.w===champ);const sh=(cqi<2&&qIdx<2)||(cqi>=2&&qIdx>=2);
+        if(by===champ){guar[a]=PT[5];maxP[a]=PT[5]}
+        else if(sh){guar[a]=PT[7];maxP[a]=PT[7]}
+        else{guar[a]=PT[8];maxP[a]=PT[6]}
+      } else if(semi.w){
+        guar[a]=by===semi.w?PT[6]:PT[8];maxP[a]=by===semi.w?PT[5]:PT[7];
+      } else{guar[a]=PT[8];maxP[a]=PT[5]}
+      return;
+    }
+    if(!semi.w){guar[a]=PT[4];maxP[a]=PT[1];return}
+    if(semi.w!==a){
+      if(champ){const csi=s.s.findIndex(sm=>sm.w===champ);guar[a]=csi===si2?PT[3]:PT[4];maxP[a]=guar[a]}
+      else{guar[a]=PT[4];maxP[a]=PT[3]}
+      return;
+    }
+    if(!s.f.w){guar[a]=PT[2];maxP[a]=PT[1];return}
+    const p=s.f.w===a?PT[1]:PT[2];guar[a]=p;maxP[a]=p;
+  });
+  return{guar,maxP};
+}
+
+function calcPlacarGeral(){
+  const totG={},totMax={};ALL_A.forEach(a=>{totG[a]=0;totMax[a]=0});
+  MODALIDADES.forEach(m=>{
+    const{guar,maxP}=getModalPts(m.id);ALL_A.forEach(a=>{totG[a]+=guar[a];totMax[a]+=maxP[a]});
+  });
+  ALL_A.forEach(a=>{
+    const p=parseInt(cheerPos[a]||0);
+    if(p>0){totG[a]+=PTR[p]||0;totMax[a]+=PTR[p]||0;}
+    else{totMax[a]+=PTR[1]||0;}
+  });
+  return ALL_A.map(a=>({a,guar:totG[a],max:totMax[a]})).sort((x,y)=>y.guar-x.guar||y.max-x.max);
+}
+
+function renderPlacar(){
+  const dados=calcPlacarGeral();const maxPts=Math.max(...dados.map(d=>d.max),1);
+  const el=document.getElementById('placar-rows');el.innerHTML='';
+  const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:14px;margin-bottom:12px;font-size:11px;color:#444';
+  hdr.innerHTML=`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:6px;border-radius:3px;background:#ff6b35;display:inline-block"></span>garantido</span><span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:6px;border-radius:3px;background:#4a1800;display:inline-block"></span>maximo</span>`;
+  el.appendChild(hdr);
+  dados.forEach((d,i)=>{
+    const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+    const row=document.createElement('div');row.className='prow';
+    const bMax=Math.round((d.max/maxPts)*100),bG=Math.round((d.guar/maxPts)*100);
+    const fixed=d.guar===d.max&&d.guar>0;
+    const rs=fixed?'confirmado':d.guar>0||d.max>0?`gar. ${d.guar} · max ${d.max}`:'em aberto';
+    row.innerHTML=`<div class="p-rank ${rc}">${i+1}</div><div class="dot" style="background:${CORES[d.a]}"></div><div class="p-name">${d.a}</div><div class="p-apelido">${APELIDOS[d.a]||''}</div><div class="p-guar">${d.guar}</div><div class="p-bar-wrap"><div class="p-bar-bg"><div class="p-bar-max" style="width:${bMax}%"></div><div class="p-bar-guar" style="width:${bG}%"></div></div><div class="p-range" style="color:${fixed?'#cc4400':'#333'}">${rs}</div></div>`;
+    el.appendChild(row);
+  });
+  document.getElementById('placar-note').textContent='Garantido: chega as quartas=7pts(P)/5pts(R) · semis=7pts(P)/5pts(R) · final=11pts(P)/8pts(R) | Art. 80 Estatuto JUCS';
+}
+
+function renderBracket(){
+  const mid=currentModal,m=MODALIDADES.find(x=>x.id===mid);
+  const bv=document.getElementById('bracket-view'),rv=document.getElementById('rank-view');
+  if(!m.bracket){bv.innerHTML=`<div style="font-size:13px;color:#555;padding:8px 0 12px">Insira as colocacoes:</div>`;rv.innerHTML='';renderManualRanks(mid,bv);return}
+  const s=state[mid];bv.innerHTML='';rv.innerHTML='';
+  const{guar,maxP}=getModalPts(mid);const PT=getPontos(m);
+  const wrap=document.createElement('div');wrap.className='bracket-wrap';
+  const br=document.createElement('div');br.className='bracket';
+  function makeSlot(name,isW,isL,fn,isBye){
+    const div=document.createElement('div');
+    div.className=isBye?'slot bye':('slot'+(isW?' winner':isL?' loser':!name?' empty':''));
+    let badge='';
+    if(name&&(guar[name]>0||maxP[name]>0)){const g=guar[name],mx=maxP[name];if(g===mx&&g>0)badge=`<span class="slot-badge badge-orange">${g}pts</span>`;else if(mx>0)badge=`<span class="slot-badge badge-gray">${g}-${mx}</span>`;}
+    const dot=name&&CORES[name]?`<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${CORES[name]};flex-shrink:0;margin-right:2px"></span>`:'';
+    const label=isBye?`${name} <span style="font-size:9px;color:#4a1800">(bye)</span>`:name||'--';
+    div.innerHTML=`${dot}<span class="slot-name">${label}</span>${badge}`;
+    if(name&&fn&&!isBye)div.onclick=fn;else div.style.cursor='default';
+    return div;
+  }
+  function makePair(a,b){const d=document.createElement('div');d.className='match-pair';d.appendChild(a);d.appendChild(b);return d}
+  function makeConn(v){
+    const d=document.createElement('div');d.style.cssText='flex-shrink:0;display:flex;align-items:center;justify-content:center';
+    if(v){d.style.width='12px';d.innerHTML='<svg width="12" height="80" viewBox="0 0 12 80"><path d="M0 20 H6 V60 H0" fill="none" stroke="#222" stroke-width="1"/></svg>'}
+    else{d.style.width='12px';d.innerHTML='<svg width="12" height="12" viewBox="0 0 12 12"><line x1="0" y1="6" x2="12" y2="6" stroke="#222" stroke-width="1"/></svg>'}
+    return d;
+  }
+  function makeRound(label,children){
+    const col=document.createElement('div');col.className='round';
+    const lbl=document.createElement('div');lbl.className='round-label';lbl.textContent=label;
+    col.appendChild(lbl);children.forEach(c=>col.appendChild(c));return col;
+  }
+  const setQ=(qi,w)=>{
+    if(s.q[qi].bye)return;s.q[qi].w=w;const si2=qi<2?0:1;
+    const st=getSemiTeams(mid,si2);if(s.s[si2].w&&!st.includes(s.s[si2].w))s.s[si2].w=null;
+    const ft=getFinalistsTeams(mid);if(s.f.w&&!ft.includes(s.f.w))s.f.w=null;
+    renderBracket();renderPlacar();triggerSave();
+  };
+  const setSemi=(si2,w)=>{
+    s.s[si2].w=w;const ft=getFinalistsTeams(mid);if(s.f.w&&!ft.includes(s.f.w))s.f.w=null;
+    renderBracket();renderPlacar();triggerSave();
+  };
+  const setFinal=w=>{s.f.w=w;renderBracket();renderPlacar();triggerSave()};
+  function makeQPairs(idxs){
+    return idxs.map(qi=>{
+      const q=s.q[qi],[tA,tB]=q.match,w=q.w;
+      if(q.bye){const bt=tA||tB,bs=makeSlot(bt,true,false,null,true),es=makeSlot(null,false,false,null,false);return makePair(tA?bs:es,tA?es:bs)}
+      return makePair(makeSlot(tA,w===tA,!!w&&w!==tA,()=>setQ(qi,w===tA?null:tA),false),makeSlot(tB,w===tB,!!w&&w!==tB,()=>setQ(qi,w===tB?null:tB),false));
+    });
+  }
+  function makeSemiPair(si2){
+    const[tA,tB]=getSemiTeams(mid,si2),w=s.s[si2].w;
+    return makePair(makeSlot(tA,w===tA,!!w&&w!==tA&&!!tA,tA?()=>setSemi(si2,w===tA?null:tA):null,false),makeSlot(tB,w===tB,!!w&&w!==tB&&!!tB,tB?()=>setSemi(si2,w===tB?null:tB):null,false));
+  }
+  const[fA,fB]=getFinalistsTeams(mid),fw=s.f.w;
+  const finalPair=makePair(makeSlot(fA,fw===fA,!!fw&&fw!==fA&&!!fA,fA?()=>setFinal(fw===fA?null:fA):null,false),makeSlot(fB,fw===fB,!!fw&&fw!==fB&&!!fB,fB?()=>setFinal(fw===fB?null:fB):null,false));
+  const champDiv=document.createElement('div');champDiv.className='round-center';
+  const cbox=document.createElement('div');cbox.className='champion-box';cbox.innerHTML=`<div class="champion-label">Campea</div><div class="champion-name">${s.f.w||'--'}</div>`;
+  champDiv.appendChild(cbox);
+  const lC=document.createElement('div');lC.style.cssText='display:flex;flex-direction:column;justify-content:space-around;padding-top:20px';[0,1].forEach(()=>lC.appendChild(makeConn(true)));
+  const rC=document.createElement('div');rC.style.cssText='display:flex;flex-direction:column;justify-content:space-around;padding-top:20px';[0,1].forEach(()=>rC.appendChild(makeConn(true)));
+  const lC2=document.createElement('div');lC2.style.cssText='display:flex;flex-direction:column;justify-content:center;padding-top:20px';lC2.appendChild(makeConn(false));
+  const rC2=document.createElement('div');rC2.style.cssText='display:flex;flex-direction:column;justify-content:center;padding-top:20px';rC2.appendChild(makeConn(false));
+  [makeRound('Quartas',makeQPairs([0,1])),lC,makeRound('Semi',[makeSemiPair(0)]),lC2,makeRound('Final',[finalPair]),champDiv,rC2,makeRound('Semi',[makeSemiPair(1)]),rC,makeRound('Quartas',makeQPairs([2,3]))].forEach(el=>br.appendChild(el));
+  wrap.appendChild(br);bv.appendChild(wrap);
+  const title=document.createElement('div');title.className='section-label';title.style.marginTop='16px';title.textContent='Pontos nesta modalidade';rv.appendChild(title);
+  ALL_A.map(a=>({a,g:guar[a],mx:maxP[a]})).sort((x,y)=>y.g-x.g||y.mx-x.mx).forEach((d,i)=>{
+    const row=document.createElement('div');row.className='rank-row';
+    const fixed=d.g===d.mx&&d.g>0,noP=d.g===0&&d.mx===0;
+    const rs=noP?'nao participa':fixed?'confirmado':d.g>0||d.mx>0?`gar. ${d.g} · max ${d.mx}`:'em aberto';
+    row.innerHTML=`<div class="rank-num">${i+1}</div><div class="dot" style="background:${CORES[d.a]}"></div><div class="rank-name">${d.a} <span style="font-size:10px;color:#444">${APELIDOS[d.a]||''}</span></div><div class="rank-pts">${d.g>0?d.g:'--'}</div><div class="rank-range" style="color:${fixed?'#cc4400':noP?'#1a1a1a':'#2a2a2a'}">${rs}</div>`;
+    rv.appendChild(row);
+  });
+}
+
+function renderManualRanks(mid,container){
+  const m=MODALIDADES.find(x=>x.id===mid);const PT=getPontos(m);
+  const mr=manualRanks[mid]||{},grid=document.createElement('div');grid.className='manual-grid';
+  ALL_A.forEach(a=>{
+    const cur=parseInt(mr[a]||0),cell=document.createElement('div');cell.className='manual-cell';
+    cell.innerHTML=`<div style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${CORES[a]}"></span><span style="font-size:11px;color:#444">${a}</span></div><select onchange="setManual('${mid}','${a}',this.value)"><option value="0" ${cur===0?'selected':''}>-- nao participou</option>${[1,2,3,4,5,6,7,8].map(p=>`<option value="${p}" ${cur===p?'selected':''}>${p} (${PT[p]} pts)</option>`).join('')}</select>`;
+    grid.appendChild(cell);
+  });
+  container.appendChild(grid);
+}
+function setManual(mid,a,val){manualRanks[mid][a]=parseInt(val);renderPlacar();updateModalTabs();triggerSave()}
+
+function renderCheer(){
+  const el=document.getElementById('cheer-view');if(!el)return;el.innerHTML='';
+  const title=document.createElement('div');title.style.cssText='font-size:14px;font-weight:700;margin-bottom:4px';title.textContent='Cheerleading';
+  const sub=document.createElement('div');sub.style.cssText='font-size:11px;color:#444;margin-bottom:16px';
+  sub.textContent='Ordem de apresentacao definida. Atribua a colocacao final.';
+  el.appendChild(title);el.appendChild(sub);
+  const list=document.createElement('div');list.className='cheer-list';
+  CHEER_ORDER.forEach((a,i)=>{
+    const pos=parseInt(cheerPos[a]||0);
+    const item=document.createElement('div');item.className='cheer-item';
+    item.innerHTML=`<div class="cheer-num">${i+1}a</div><div class="dot" style="background:${CORES[a]}"></div><div class="cheer-name">${a} <span class="cheer-ape">${APELIDOS[a]||''}</span></div><select class="cheer-sel" onchange="setCheerPos('${a}',this.value)"><option value="0" ${pos===0?'selected':''}>-- colocacao</option>${[1,2,3,4,5,6,7,8].map(p=>`<option value="${p}" ${pos===p?'selected':''}>${p} lugar (${PTR[p]}pts)</option>`).join('')}</select><div class="cheer-pts">${pos>0?PTR[pos]+'pts':''}</div>`;
+    list.appendChild(item);
+  });
+  el.appendChild(list);
+  const note=document.createElement('div');note.style.cssText='font-size:11px;color:#2a2a2a;margin-top:8px';note.textContent='Pontuacao reduzida: 1=11 · 2=8 · 3=6 · 4=5 · 5=4 · 6=3 · 7=2 · 8=1';el.appendChild(note);
+}
+function setCheerPos(a,val){cheerPos[a]=parseInt(val)||0;renderCheer();renderPlacar();triggerSave()}
+
+function updateModalTabs(){
+  document.querySelectorAll('.mtab').forEach(btn=>{
+    const mid=btn.dataset.mid,m=MODALIDADES.find(x=>x.id===mid);btn.classList.remove('done');
+    if(!m.bracket){if(Object.values(manualRanks[mid]||{}).some(v=>v>0))btn.classList.add('done')}
+    else{if(state[mid]&&state[mid].f.w)btn.classList.add('done')}
+  });
+}
+function showModal(mid){currentModal=mid;document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('active',b.dataset.mid===mid));renderBracket()}
+function showMain(view){
+  ['placar','brackets','cheer'].forEach(v=>document.getElementById('main-'+v).style.display=v===view?'':'none');
+  document.querySelectorAll('.ttab').forEach((b,i)=>b.classList.toggle('active',['placar','brackets','cheer'][i]===view));
+  if(view==='brackets')renderBracket();else if(view==='placar')renderPlacar();else renderCheer();
+}
+
+const tabsEl=document.getElementById('modal-tabs');
+MODALIDADES.forEach(m=>{
+  const btn=document.createElement('button');btn.className='mtab'+(m.id===currentModal?' active':'');
+  btn.dataset.mid=m.id;btn.textContent=m.nome;btn.onclick=()=>showModal(m.id);tabsEl.appendChild(btn);
+});
+</script>
+</body>
+</html>
